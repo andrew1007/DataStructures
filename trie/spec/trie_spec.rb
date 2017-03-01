@@ -1,17 +1,23 @@
 require "rspec"
 require "trie"
+require_relative "spec_helper"
+
+RSpec.configure do |config|
+  config.include TrieHelper
+end
 
 describe Trie do
   subject(:trie) {Trie.new}
-  subject(:words) {["dog", "dogs", "state", "states", "stated", "abc", "abcd", "abcdef", "abcddef"]}
-  before do 
+  subject(:words) {["dog", "dogged", "dogs", "state", "states", "stated", "abc", "abcd", "abcdef", "abcddef"]}
+  subject(:mismatch) {["og", "dogd", "sta", "stateds", "ab"]}
+  before do
     words.each { |word| trie.build(word)}
   end
 
   describe "#build" do
     it "add nodes with values" do
       check = words.map do |word|
-        node_exist?(trie, word)
+        to_node(trie, word, "exists")
       end
       expect(check.all? {|i| i}).to be_truthy
     end
@@ -20,53 +26,38 @@ describe Trie do
   describe "#search?" do
     it "finds words" do
       check = words.map do |word|
-        is_word_end?(trie, word)
+        to_node(trie, word, "word_end")
       end
+      expect(check.all? {|i| i }).to be_truthy
     end
-    expect(check.all? {|i| i }).to be_truthy
+
+    it "doesn't get false positives" do
+      check = mismatch.map do |word|
+        to_node(trie, word, "word_end")
+      end
+      expect(check.all? {|i| i }).to be_falsey
+    end
   end
 
-  # describe "delete" do
-  #   it "should delete words by changing word_end" do
-  #     trie.delete("dog")
-  #     node_g = to_node(trie, "dog")
-  #     expect(trie.search("dog"))
-  #   end
-  # end
-end
+  describe "#delete" do
+    it "deletes word by only changing word_end attribute" do
+      # trie.delete("dog")
+      # expect(trie.search("dog")).to be_falsey
+      # expect(trie.search("dogs")).to be_truthy
+    end
 
-def to_node(trie, str)
-  current_node = trie.root
-  str.each_char do |let|
-    current_node = current_node.children[let]
-    return false if current_node.val != let
-  end
-  current_node
-end
+    it "deletes words and nodes specific to self" do
+      trie.delete("dogged")
+      e_exists = to_node(trie, "dogge", "exists")
+      expect(trie.search("dog")).to be_truthy
+      expect(e_exists).to be_falsey
+      expect(trie.search("dogge")).to be_falsey
+    end
 
-def node_exist?(trie , str)
-  current_node = trie.root
-  str.each_char do |let|
-    current_node = current_node.children[let]
-    return false if current_node.val != let
+    it "deletes words up to a node with multiple children" do
+      trie.delete("abcdef")
+      expect(trie.search("abcdef")).to be_falsey
+      expect(trie.search("abcddef")).to be_truthy
+    end
   end
-  true
-end
-
-def node_value?(trie , str)
-  current_node = trie.root
-  str.each_char do |let|
-    current_node = current_node.children[let]
-    return nil if current_node.children[let].nil?
-  end
-  current_node.val
-end
-
-def is_word_end?(trie, str)
-  current_node = trie.root
-  str.each_char do |let|
-    current_node = current_node.children[let]
-    return nil if current_node.children[let].nil?
-  end
-  current_node.word_end
 end
