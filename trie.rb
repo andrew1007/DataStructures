@@ -1,6 +1,6 @@
 class Node
   attr_accessor :val, :children, :word_end, :parent
-  def initialize(val, parent = nil, next_node = nil, word_end = false)
+  def initialize(val, parent = nil, word_end = false)
     @val = val
     @children = {}
     @word_end = word_end
@@ -16,41 +16,30 @@ class Trie
   end
 
   def build(word)
-    current_node = @root
+    @current_node = @root
     word.each_char do |let|
-      add_node(current_node, let) if current_node.children[let].nil?
-      current_node = current_node.children[let]
+      add_node(let) if child_exists?(let)
+      @current_node = @current_node.children[let]
     end
     current_node.word_end = true
     return
   end
 
-  def add_node(node, let)
-    node.children[let] = Node.new(let, node)
-  end
-
   def search(word)
-    current_node = @root
+    @current_node = @root
     word.each_char do |let|
-      if current_node.children[let].nil?
-        @current_node = nil
-        return nil
-      end
-      current_node = current_node.children[let]
+      return nil if child_exists?(let)
+      @current_node = next_node(let)
     end
-    if !current_node.word_end
-      @current_node = nil
-      return nil
-    end
-    @current_node = current_node
+    return nil if !@current_node.word_end
     return true
   end
 
   def delete(word)
     if search(word)
-      if @current_node.children.empty?
-        next_node = next_word_up(@current_node)
-        next_node.children[word[-1]] = nil
+      if any_children?
+        next_word_or_junction_up
+        delete_node(word[-1])
       else
         @current_node.word_end = false
         return
@@ -58,12 +47,40 @@ class Trie
     end
   end
 
-  def next_word_up(node)
-    current_node = node
-    while !current_node.parent.word_end
-      current_node = current_node.parent
+  private
+  def add_node(let)
+    @current_node.children[let] = Node.new(let, @current_node)
+  end
+
+  def next_word_or_junction_up
+    while !@current_node.parent.word_end || multiple_children?
+      @current_node = @current_node.parent
     end
-    return current_node
+  end
+
+  def child_exists?(let)
+    @current_node.children[let].nil?
+  end
+
+  def next_node(let)
+    @current_node.children[let]
+  end
+
+  def any_children?
+    @current_node.children.empty?
+  end
+
+  def delete_node(let)
+    @current_node.children[let] = nil
+    return
+  end
+
+  def is_word?
+    @current_node.word_end
+  end
+
+  def multiple_children?
+    @current_node.children.keys.count > 1
   end
 end
 
@@ -71,8 +88,13 @@ trie = Trie.new
 trie.build("dog")
 trie.build("dogs")
 trie.build("dogswd")
+trie.build("dogsdw")
 trie.delete("dog")
+trie.search("dog")
 trie.search("dogs")
 trie.search("dogd")
 trie.search("dogswd")
+trie.search("dogsdw")
 trie.delete("dogswd")
+trie.search("dogswd")
+trie.search("dogsdw")
